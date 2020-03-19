@@ -14,10 +14,10 @@ class RoyalCompass extends Item {
 	static $collected = array();
 
 	public function __construct($meta = 0, $count = 1){
-		parent::__construct(345, $meta, $count, "Compass");
+		parent::__construct(345, $meta, "Royale Compass");
 	}
 
-	public function getMaxStackSize(){
+	public function getMaxStackSize(): int{
 		return 1;
 	}
 
@@ -55,7 +55,7 @@ class RoyalCompass extends Item {
 				$target = explode(":", array_search(min(array_values($values)), $values));
 				unset($values);
 				$this->addCollected(intval($target[2]));
-				$this->setRoyaleSpawn($player, $target[0], $target[1]);
+				$this->setRoyaleSpawn($player, (int) $target[0], (int) $target[1]);
 				$player->sendMessage(TextFormat::GREEN."Se ha encontrado una caja cerca de ti, sigue tu compass!");
 			}else{
 				$player->sendMessage(TextFormat::RED."No se ha encontrado ninguna caja.");

@@ -2,18 +2,20 @@
 
 namespace BattleRoyale\Guns;
 
+use pocketmine\nbt\tag\CompoundTag;
+
 class LeatherGun extends GunClass {
 
-  static $zoom = false;
   static $max = 10;
-  static $ammo = 0;
-  static $damage = 3.0;
+  static $zoom = false;
+  static $ammo = 10;
+  static $damage = 2;
   static $reload = 5;
   static $reloading = false;
-  static $scheduler = 0;
+  static $time = 0;
 
   public function __construct($meta = 0, $count = 1){
-    parent::__construct(416, $meta, $count, "Pistol");
+    parent::__construct(416, $meta, "Pistola");
   }
 
 }

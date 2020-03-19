@@ -15,15 +15,14 @@ class BossManager {
 
   const NETWORK_EID = 9999;
 
-  public static function addWindow(Player $player){
+  public static function addWindow(Player $player): void{
     $packet = new AddEntityPacket();
     $packet->entityRuntimeId = BossManager::NETWORK_EID;
     $packet->type = 37;
-    $packet->x = $player->getX();
-    $packet->y = $player->getY();
-    $packet->z = $player->getZ();
+    $packet->position = $player->asVector3();
     $packet->yaw = $player->yaw;
     $packet->pitch = $player->pitch;
+    $packet->motion = $player->getMotion();
     $packet->metadata[Entity::DATA_LEAD_HOLDER_EID] = array(Entity::DATA_TYPE_LONG, -1);
     $packet->metadata[Entity::DATA_FLAGS] = array(Entity::DATA_TYPE_LONG, 0 ^ 1 << Entity::DATA_FLAG_SILENT ^ 1 << Entity::DATA_FLAG_INVISIBLE);
     $packet->metadata[Entity::DATA_SCALE] = array(Entity::DATA_TYPE_FLOAT, 0.0);
@@ -45,7 +44,7 @@ class BossManager {
     unset($packet);
     $packet = new UpdateAttributesPacket();
     $packet->entries[] = new BossSettings();
-    $packet->entityId = BossManager::NETWORK_EID;
+    $packet->entityRuntimeId = BossManager::NETWORK_EID;
     $player->dataPacket($packet);
   }
 
@@ -53,16 +52,16 @@ class BossManager {
     return TextFormat::BOLD.TextFormat::YELLOW."Battle ".TextFormat::WHITE."Royale";
   }
 
-  public static function removeWindow(Player $player){
+  public static function removeWindow(Player $player): void{
     $packet = new RemoveEntityPacket();
-    $packet->eid = BossManager::NETWORK_EID;
+    $packet->entityUniqueId = BossManager::NETWORK_EID;
     $player->dataPacket($packet);
   }
 
-  public static function setString(Player $player, string $message = ""){
+  public static function setString(Player $player, string $message = ""): void{
     $packet = new SetEntityDataPacket();
     $packet->metadata[Entity::DATA_NAMETAG] = array(Entity::DATA_TYPE_STRING, $message);
-    $packet->eid = BossManager::NETWORK_EID;
+    $packet->entityRuntimeId = BossManager::NETWORK_EID;
     $player->dataPacket($packet);
     unset($packet);
     $packet = new BossEventPacket();

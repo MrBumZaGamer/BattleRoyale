@@ -8,7 +8,7 @@ class EggLauncher extends CustomProjectile {
 
 	const NETWORK_ID = 82;
 
-	public function getName(){
+	public function getName(): string{
 		return "Constructor";
 	}
 
@@ -18,20 +18,18 @@ class EggLauncher extends CustomProjectile {
 				$this->level->setBlock($this->add($x, 0, $z), Block::get(Block::SANDSTONE, 0));
 			}
 		}
-		//$this->level->setBlock($this, Block::get(Block::SANDSTONE, 0));
 	}
 
-	public function onUpdate($tick){
-		parent::onUpdate($tick);
-		if(!$this->hadCollision){
-			//if($this->ticksLived % 3 === 0){
-				$this->build();
-			//}
+	public function entityBaseTick(int $tickDiff = 1): bool{
+		$hasUpdate = parent::entityBaseTick($tickDiff);
+		if(!$this->isCollided){
+			$this->build();
 		}else{
 			if($this->isAlive()){
 				$this->close();
 			}
 		}
+		return $hasUpdate;
 	}
 
 }

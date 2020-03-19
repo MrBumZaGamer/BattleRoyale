@@ -22,14 +22,14 @@ class BattleRoyale extends PluginCommand {
 		return "/battleroyale";
 	}
 
-	public function execute(CommandSender $sender, $label, array $args){
+	public function execute(CommandSender $sender, string $label, array $args): bool{
 		if(!$sender instanceof Player){
 			$sender->sendMessage(TextFormat::RED."No puedes utilizar este comando en la consola!");
-			return;
+			return false;
 		}
 		if(!is_null(Utils::isCreating($sender->getName()))){
 			$sender->sendMessage(TextFormat::GOLD."No puedes ver/entrar a una partida en el modo creador, para salir usa ' leave (salir) '");
-			return;
+			return false;
 		}
 		switch(strtolower($args[0])){
 
@@ -60,9 +60,7 @@ class BattleRoyale extends PluginCommand {
 			case "salir":
 			if(!is_null($session = Utils::getPlayer($sender->getName()))){
 				$sender->sendMessage(TextFormat::GREEN."Abandonando esta partida, por favor espera...");
-				$session->getArena()->removePlayer($sender->getName());
-				$session::$custom = true;
-				$session->deleteSession();
+				Utils::resetPlayer($session, true);
 			}else{
 				$sender->sendMessage(TextFormat::RED."No estas en ninguna partida... XD");
 			}
@@ -100,10 +98,17 @@ class BattleRoyale extends PluginCommand {
 			$sender->sendMessage(TextFormat::YELLOW."Juegos en total: ".TextFormat::GRAY.implode(", ", array_keys(GameManager::getInstance()->arenas)));
 			break;
 
+			case "information":
+			case "informacion":
+			$sender->sendMessage(TextFormat::YELLOW."Author: ".TextFormat::AQUA."@BEcraft_MCPE");
+			break;
+
 			default:
+			$sender->sendMessage(TextFormat::GRAY."Comandos: ".TextFormat::YELLOW."join <arena>, list, status <arena>");
 			break;
 
 		}
+		return true;
 	}
 
 }

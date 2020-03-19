@@ -4,11 +4,16 @@ namespace BattleRoyale\Items;
 
 use pocketmine\item\Food;
 use pocketmine\entity\Entity;
+use pocketmine\entity\Living;
 use pocketmine\Player;
-use pocketmine\event\entity\EntityEatItemEvent;
+use pocketmine\event\player\PlayerItemConsumeEvent;
 use pocketmine\network\mcpe\protocol\EntityEventPacket;
 
 class RoyaleFood extends Food {
+
+	public function requiresHunger(): bool{
+		return false;
+	}
 
 	public function canBeConsumedBy(Entity $entity): bool{
 		return $entity instanceof Player;
@@ -22,14 +27,14 @@ class RoyaleFood extends Food {
 		return 0.0;
 	}
 
-	public function onConsume(Entity $player){
+	public function onConsume(Living $player){
 		$packet = new EntityEventPacket();
-		$packet->eid = $player->getId();
+		$packet->entityRuntimeId = $player->getId();
 		$packet->event = EntityEventPacket::USE_ITEM;
 		$player->dataPacket($packet);
 		$player->getLevel()->getServer()->broadcastPacket($player->getViewers(), $packet);
 		unset($packet);
-		$player->getLevel()->getServer()->getPluginManager()->callEvent(new EntityEatItemEvent($player, $this));
+		$player->getLevel()->getServer()->getPluginManager()->callEvent(new PlayerItemConsumeEvent($player, $this));
 		$player->getInventory()->setItemInHand($this->getResidue());
 	}
 

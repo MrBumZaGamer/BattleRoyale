@@ -2,10 +2,12 @@
 
 namespace BattleRoyale;
 
+use pocketmine\item\ItemFactory;
 use pocketmine\item\Item;
 use pocketmine\entity\Entity;
 use pocketmine\plugin\PluginBase;
 use pocketmine\tile\Tile;
+use pocketmine\utils\Config;
 use BattleRoyale\Timer\BattleTask;
 use BattleRoyale\Commands\Create;
 use BattleRoyale\Commands\BattleRoyale;
@@ -34,15 +36,23 @@ use BattleRoyale\Utilities\Utils;
 class GameManager extends PluginBase {
 
 	static $instance;
-	public $arenas = array();
 	static $players = array();
 	static $creators = array();
 
+	public $arenas = array();
+
 	public function onEnable(){
-		if(!is_file($directory = $this->getDataFolder())){
-			@mkdir($directory, 0777);
-			@mkdir($directory."Games/", 0777);
-			@mkdir($directory."Maps/", 0777);
+		$directory = $this->getDataFolder();
+		if(!is_dir($directory."Games/") || !is_dir($directory."Maps/")){
+			if(!is_dir($directory)){
+				mkdir($directory);
+			}
+			if(!is_dir($directory."Games/")){
+				mkdir($directory."Games/");
+			}
+			if(!is_dir($directory."Maps/")){
+				mkdir($directory."Maps/");
+			}
 			$this->saveResource("config.yml");
 		}
 		$items = array(
@@ -61,12 +71,7 @@ class GameManager extends PluginBase {
 			385 => Fireball::class
 		);
 		foreach($items as $id => $class){
-			Item::$list[$id] = $class;
-		}
-		Item::init();
-		foreach(array_keys($items) as $id){
-			$item = Item::get($id);
-			Item::addCreativeItem($item);
+			ItemFactory::registerItem(new $class(), true);
 		}
 		$entities = array(
 			RoyalAmmo::class,  
@@ -92,7 +97,7 @@ class GameManager extends PluginBase {
 			if($file == ".." || $file == "."){
 				continue;
 			}
-			Utils::addArena(yaml_parse_file($folder.$file), str_replace(".yml", "", $file), $directory."Maps/");
+			Utils::addArena(new Config($folder.$file, Config::YAML, []), str_replace(".yml", "", $file), $directory."Maps/");
 		}
 		$this->getServer()->getScheduler()->scheduleRepeatingTask(new BattleTask($this), 20);
 		$this->getLogger()->info("El plugin se ha cargado");

@@ -79,23 +79,23 @@ class ChestItems {
 		"Carne podrida" => array(Item::ROTTEN_FLESH, 0, true, 3),
 		"Escudo" => array(Item::POTION, 4, false, 1),
 		"Velocidad" => array(Item::POTION, 14, false, 1),
-		"Granada" => array(Item::ENCHANTING_BOTTLE, 0, false, 1),
-		"Bomba motolov" => array(Item::ENCHANTING_BOTTLE, 1, false, 1),
+		"Granada" => array(Item::EXPERIENCE_BOTTLE, 0, false, 1),
+		"Bomba motolov" => array(Item::EXPERIENCE_BOTTLE, 1, false, 1),
 		"Bola de fuego" => array(Item::FIRE_CHARGE, 0, false, 1),
-		"Zanahorias" => array(Item::CARROTS, 0, true, 11),
+		"Zanahorias" => array(Item::CARROT, 0, true, 11),
 		"Patata cruda" => array(Item::POTATO, 0, true, 9),
 		"Patata cocida" => array(Item::BAKED_POTATO, 0, true, 8),
 		"Balas" => array(Item::MOB_HEAD, 0, true, 25),
 		"Conejo crudo" => array(Item::RAW_RABBIT, 0, true, 7),
 		"Conejo cocido" => array(Item::COOKED_RABBIT, 0, true, 6),
-		"Madera para construccion" => array(Block::PLANK, 0, true, 10),
+		"Madera para construccion" => array(Block::PLANKS, 0, true, 10),
 		"Piedra para construccion" => array(Block::COBBLESTONE, 0, true, 10)
 		//...
 	);
 
-	public static function fillChest(Chest $chest){
+	public static function fillChest(Chest $chest): void{
 		$chest->getInventory()->clearAll();
-		for($position = 0; $position < $chest->getSize(); ++$position){
+		for($position = 0; $position < $chest->getInventory()->getDefaultSize(); ++$position){
 			if(mt_rand(0, 6) === 3){
 				$name = array_rand(ChestItems::$chestitems);
 				$data = ChestItems::$chestitems[$name];
@@ -106,7 +106,7 @@ class ChestItems {
 		}
 	}
 
-	public static function setLevel(Level $level, array $data){
+	public static function setLevel(Level $level, array $data): void{
 		if(count($data) > 0){
 			foreach($data as $vector){
 				$vector3 = Utils::getVector($vector);
@@ -127,7 +127,7 @@ class ChestItems {
 		}
 	}
 
-	public static function fillAirDrop(BoxEntity $entity){
+	public static function fillAirDrop(BoxEntity $entity): void{
 		$inventory = array();
 		for($position = 0; $position < 10; ++$position){
 			if(in_array(mt_rand(0, 6), array(1, 3))){

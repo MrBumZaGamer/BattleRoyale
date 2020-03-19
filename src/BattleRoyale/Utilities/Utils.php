@@ -5,22 +5,19 @@ namespace BattleRoyale\Utilities;
 use BattleRoyale\GameManager;
 use BattleRoyale\Game\Arena;
 use BattleRoyale\Sessions\Playing;
+use BattleRoyale\Sessions\Creator;
 use pocketmine\math\Vector3;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\ListTag;
-use pocketmine\nbt\tag\ByteTag;
-use pocketmine\nbt\tag\FloatTag;
-use pocketmine\nbt\tag\DoubleTag;
+use pocketmine\level\Level;
 use pocketmine\utils\TextFormat;
 use ZipArchive;
 
 class Utils {
 
-	public static function getPlayer(string $player){
+	public static function getPlayer(string $player): ?Playing{
 		return array_key_exists($player, GameManager::$players) ? GameManager::$players[$player] : null;
 	}
 
-	public static function resetPlayer(Playing $session, $cause = false, $died = false, $win = false, $over = false){
+	public static function resetPlayer(Playing $session, $cause = false, $died = false, $win = false, $over = false): void{
 		$player = $session->getPlayer();
 		$session::$custom = $cause;
 		$session->getArena()->removePlayer($player->getName());
@@ -45,7 +42,7 @@ class Utils {
 		$session->deleteSession();
 	}
 
-	public static function unzipLevel(string $file){
+	public static function unzipLevel(string $file): ?Level{
 		$zip = new ZipArchive;
 		if(($plugin = GameManager::getInstance())->getServer()->isLevelLoaded($name = str_replace(".zip", "", $file))){
 			$plugin->getServer()->unloadLevel($plugin->getServer()->getLevelByName($name));
@@ -59,48 +56,59 @@ class Utils {
 		return $plugin->getServer()->getLevelByName($name);
 	}
 
-	public static function getVector(string $vector, $center = ":"){
+	public static function getVector(string $vector, $center = ":"): Vector3{
 		$values = explode($center, $vector);
 		if(count($values) < 3){
 			return new Vector3(0, 0, 0);
 		}else{
-			return new Vector3($values[0], $values[1], $values[2]); //x, y, z
+			return new Vector3($values[0], $values[1], $values[2]);
 		}
 	}
-	
-	public static function getNBT(Vector3 $vector): CompoundTag{
-		$data = new CompoundTag("", array());
-		$data->Pos = new ListTag("Pos", array(
-			new DoubleTag("", $vector->getX()), 
-			new DoubleTag("", $vector->getY()), 
-			new DoubleTag("", $vector->getZ()))
-	);
-		$data->Motion = new ListTag("Motion", array(
-			new DoubleTag("", 0), 
-			new DoubleTag("", 0), 
-			new DoubleTag("", 0))
-	);
-		$data->Rotation = new ListTag("Rotation", array(
-			new FloatTag("", 0.0), 
-			new FloatTag("", 0.0))
-	);
-		return $data;
-	}
 
-	public static function addArena(array $data, string $arena, string $directory){
-		if(count(array_values($data)) !== 7){
+	public static function addArena($config, string $arena, string $directory): bool{
+		if(count($config->getAll()) !== 7){
 			GameManager::getInstance()->getLogger()->warning(TextFormat::RED."Faltan valores para la arena: ".$arena);
-			return;
+			return false;
 		}
-		if(!is_file($directory.$data["level"].".zip")){
+		if(!is_file($directory.$config->get("level", "~").".zip")){
 			GameManager::getInstance()->getLogger()->warning(TextFormat::RED."Falta el mapa para la arena: ".$arena);
-				return;
+			return false;
 		}
-		GameManager::getInstance()->arenas[$arena] = new Arena($data, $arena);
+		if(is_null($config->get("max")) || !is_numeric($config->get("max"))){
+			$config->set("max", 5);
+			$config->save();
+		}
+		if(is_null($config->get("radius")) || !is_numeric($config->get("radius")) || $config->get("radius") < 150){
+			$config->set("radius", 150);
+			$config->save();
+		}
+		if(!is_array($config->get("chests", array())) || is_null($config->get("chests", array()))){
+			$config->set("chests", array());
+			$config->save();
+		}
+		if(is_null($config->get("level"))){
+			GameManager::getInstance()->getLogger()->warning(TextFormat::RED."Falta el nombre del mapa para la arena: ".$arena);
+			return false;
+		}
+		if(is_null($config->get("center")) || !is_string($config->get("center")) || substr_count($config->get("center"), ":") !== 2){
+			$config->set("center", "0:100:0");
+			$config->save();
+		}
+		if(is_null($config->get("lobby")) || !is_string($config->get("lobby")) || substr_count($config->get("lobby"), ":") !== 2){
+			$config->set("lobby", "0:100:0");
+			$config->save();
+		}
+		if(is_null($config->get("direction")) || !is_numeric($config->get("direction"))){
+			$config->set("direction", 1);
+			$config->save();
+		}
+		GameManager::getInstance()->arenas[$arena] = new Arena($config->getAll(), $arena);
+		assert(isset(GameManager::arenas[$arena]) === true);
 		GameManager::getInstance()->getLogger()->info(TextFormat::GREEN."Se ha agregado una nueva arena: ".$arena);
+		return true;
 	}
 
-	public static function isCreating(string $player){
+	public static function isCreating(string $player): ?Creator{
 		return array_key_exists($player, GameManager::$creators) ? GameManager::$creators[$player] : null;
 	}
 

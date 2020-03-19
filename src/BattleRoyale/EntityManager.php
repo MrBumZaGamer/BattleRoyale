@@ -13,15 +13,9 @@ use pocketmine\nbt\tag\FloatTag;
 
 abstract class EntityManager extends Living {
 
-	public function initEntity(){
-		parent::initEntity();
-	}
+	public $width = 1;
 
-	public function saveNBT(){
-		parent::saveNBT();
-	}
-
-	public function attack($damage, EntityDamageEvent $source){
+	public function attack(EntityDamageEvent $source){
 		if($source->getCause() !== EntityDamageEvent::CAUSE_VOID){
 			$source->setCancelled();
 		}else{
@@ -34,36 +28,33 @@ abstract class EntityManager extends Living {
 	public function spawnTo(Player $player){
 		$packet = new AddEntityPacket();
 		$packet->type = static::NETWORK_ID;
-		$packet->speedX = $this->motionX;
-		$packet->speedY = $this->motionY;
-		$packet->speedZ = $this->motionZ;
-		$packet->x = $this->getX();
-		$packet->y = $this->getY();
-		$packet->z = $this->getZ();
+		$packet->motion = $this->getMotion();
+		$packet->position = $this->asVector3();
 		$packet->entityRuntimeId = $this->getId();
 		$packet->pitch = $this->pitch;
 		$packet->yaw = $this->yaw;
-		$packet->metadata = $this->dataProperties;
+		$packet->metadata = $this->getDataPropertyManager()->getAll();
 		$player->dataPacket($packet);
 		parent::spawnTo($player);
 	}
 
 	public static function getCompoundMotion(Player $player): CompoundTag{
-		$data = new CompoundTag("", []);
-		$data->Pos = new ListTag(
-			"Pos", array(
+		$data = new CompoundTag("", [
+			new ListTag("Pos", array(
 				new DoubleTag("", $player->getX()), 
 				new DoubleTag("", $player->getY() + $player->getEyeHeight()), 
-				new DoubleTag("", $player->getZ())));
-		$data->Motion = new ListTag(
-			"Motion", array(
+				new DoubleTag("", $player->getZ())
+			)),
+			new ListTag("Motion", array(
 				new DoubleTag("", -sin($player->yaw / 180 * M_PI) * cos($player->pitch / 180 * M_PI)), 
 				new DoubleTag("", -sin($player->pitch / 180 * M_PI)), 
-				new DoubleTag("", cos($player->yaw / 180 * M_PI) * cos($player->pitch / 180 * M_PI))));
-		$data->Rotation = new ListTag(
-			"Rotation", array(
+				new DoubleTag("", cos($player->yaw / 180 * M_PI) * cos($player->pitch / 180 * M_PI))
+			)),
+			new ListTag("Rotation", array(
 				new FloatTag("", $player->yaw), 
-				new FloatTag("", $player->pitch)));
+				new FloatTag("", $player->pitch)
+			))
+		]);
 		return $data;
 	}
 }

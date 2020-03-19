@@ -41,10 +41,10 @@ class Arena {
 
 	public function __construct(array $config, string $arena){
 		$this->name = $arena;
-		$this->max = intval($config["max"]);
 		$this->players = array();
-		$this->radius = intval($config["radius"]);
-		$this->chests = is_array($config["chests"]) ? $config["chests"] : array();
+		$this->max = (int) $config["max"];
+		$this->radius = (int) $config["radius"];
+		$this->chests = (array) $config["chests"];
 		$this->level = GameManager::getInstance()->getServer()->getLevelByName((string) $config["level"]);
 		$this->status = Arena::WAITING;
 		$this->vector = Utils::getVector((string) $config["center"]);
@@ -56,12 +56,12 @@ class Arena {
 		if(is_null($this->level)){
 			if(($level = Utils::unzipLevel((string) $config["level"].".zip")) instanceof Level){
 				$this->level = $level;
-				$level->setTime(7000);
-				$level->stopTime();
+				$this->level->setTime(7000);
+				$this->level->stopTime();
 			}
 		}
 		$this->storm = new Storm($this);
-		foreach($level->getEntities() as $entity){
+		foreach($this->getLevel()->getEntities() as $entity){
 			if($entity instanceof BoxEntity){
 				$entity->close();
 			}
@@ -73,7 +73,7 @@ class Arena {
 		return $this->direction;
 	}
 
-	public function setLevel(Level $level){
+	public function setLevel(Level $level): void{
 		$this->level = $level;
 	}
 
@@ -85,7 +85,7 @@ class Arena {
 		return $this->max;
 	}
 
-	public function getVector(){
+	public function getVector(): Vector3{
 		return $this->vector;
 	}
 
@@ -113,15 +113,14 @@ class Arena {
 		return $this->level;
 	}
 
-	private function resetGame(){
+	private function resetGame(): void{
 		if($this->getCount() > 0){
-			foreach($this->getPlayers() as $name => $session){
+			foreach($this->getPlayers(true) as $session){
 				Utils::resetPlayer($session, true, false, false, true);
-				unset(GameManager::$players[$name]);
 			}
 		}
 		foreach($this->getLevel()->getEntities() as $entity){
-			if($entity instanceof AirDrop){
+			if($entity instanceof BoxEntity){
 				$entity->close();
 			}
 		}
@@ -145,7 +144,7 @@ class Arena {
 		}
 	}
 
-	public function broadcastStorm(){
+	public function broadcastStorm(): void{
 		foreach($this->getPlayers(true) as $session){
 			$session->sendMessage(TextFormat::GOLD."> El radio de la tormenta se ha reducido (-30), cuidado a donde vas...");
 		}
@@ -159,11 +158,11 @@ class Arena {
 		return array_values($this->getPlayers())[0];
 	}
 
-	public function addPlayer(Playing $session){
+	public function addPlayer(Playing $session): void{
 		$this->players[$session->getPlayer()->getName()] = $session;
 	}
 
-	public function removePlayer(string $player){
+	public function removePlayer(string $player): void{
 		$session = $this->getPlayer($player);
 		if($session instanceof Playing){
 			$session->setPosition($this->getCount());
@@ -171,15 +170,15 @@ class Arena {
 		}
 	}
 
-	public function asPosition(Vector3 $vector){
-		return new Position($vector->getX(), $vector->getY(), $vector->getZ(), $this->getLevel());
+	public function asPosition(Vector3 $vector): Position{
+		return new Position((float) $vector->getX(), (float) $vector->getY(), (float) $vector->getZ(), $this->getLevel());
 	}
 
-	private function setStatus(int $value){
+	private function setStatus(int $value): void{
 		$this->status = $value;
 	}
 
-	public function getPlayer(string $player){
+	public function getPlayer(string $player): Playing{
 		if($this->isPlaying($player)){
 			return $this->players[$player];
 		}
@@ -200,10 +199,10 @@ class Arena {
 					$this->countdown = 60;
 				}
 				foreach($this->getPlayers(true) as $session){
-					$session->getPlayer()->sendMessage(TextFormat::GREEN."La partida comenzará pronto");
+					$session->getPlayer()->sendMessage(TextFormat::GREEN."La partida comenzará pronto!");
 				}
 				$this->setStatus(Arena::STARTING);
-				return;
+				return false;
 			}else{
 				if($this->getCount() === 1){
 					$this->getLastSession()->getPlayer()->sendTip(TextFormat::GOLD."Esperando por un jugador mas...");
@@ -215,22 +214,22 @@ class Arena {
 			if($this->getCount() < 2){
 				$this->countdown = 60;
 				$this->setStatus(Arena::WAITING);
-				return;
+				return false;
 			}
 			foreach($this->getPlayers(true) as $session){
 				$session->getPlayer()->sendTip(TextFormat::GREEN."Comenzando en: ".TextFormat::WHITE.$this->countdown);
 			}
 			if($this->countdown === 1){
 				foreach($this->getPlayers(true) as $session){
-					$session->sendMessage(TextFormat::BOLD.TextFormat::WHITE."Battle Royale > ".TextFormat::RESET.TextFormat::YELLOW."La partida ha comenzado, buena suerte!");
-					$session->getPlayer()->teleport($this->getStorm()->getVector3()->add(0, 100, 0));
+					$session->sendMessage(TextFormat::BOLD.TextFormat::WHITE."Battle Royale ".TextFormat::RESET.TextFormat::GRAY."> ".TextFormat::RESET.TextFormat::YELLOW."La partida ha comenzado, buena suerte!");
+					$session->getPlayer()->teleport($this->asPosition($this->getStorm()->getVector3()->add(0, 100)));
 					$session->startGame();
 					BossManager::addWindow($session->getPlayer());
 				}
 				$this->countdown = 60;
 				ChestItems::setLevel($this->getLevel(), $this->getChests());
 				$this->setStatus(Arena::RUNNING);
-				return;
+				return false;
 			}
 		}
 		if($this->getStatus() === Arena::RUNNING){
@@ -258,9 +257,9 @@ class Arena {
 				$status = $session->getZoneStatus();
 				$kills = $session->getKills();
 				$playersleft = count($this->getPlayers()) - 1;
-				$timeleft = gmdate("i:s", ((60*20)-$this->endtime));
+				$timeleft = gmdate("i:s", ((60 * 20) - $this->endtime));
 				$distance = $this->getStorm()->calculateDistance($player);
-				$player->sendTip(str_repeat(" ", 44).TextFormat::BOLD.
+				$player->sendTip("\n".str_repeat(" ", 44).TextFormat::BOLD.
 					TextFormat::GOLD."BATTLE ROYALE".$lines.
 					TextFormat::YELLOW."Tormenta: ".$storm.$lines.
 					TextFormat::YELLOW."Tu estado: ".$status.$lines.
@@ -271,7 +270,7 @@ class Arena {
 			}
 			if($this->endtime % (5 * 60) === 0){
 				foreach($this->getPlayers(true) as $session){
-					$session->getPlayer()->sendMessage(TextFormat::YELLOW."Tiempo restante: ".TextFormat::GRAY.gmdate("i:s", ((60*20) - $this->endtime)));
+					$session->getPlayer()->sendMessage(TextFormat::YELLOW."Tiempo restante: ".TextFormat::GRAY.gmdate("i:s", ((60 * 20) - $this->endtime)));
 				}
 			}
 			if($this->endtime % (20 * 60) === 0){

@@ -11,11 +11,11 @@ class BattleTask extends PluginTask {
 		parent::__construct($plugin);
 	}
 
-	public function onRun($tick){
+	public function onRun(int $tick){
 		if(empty($this->getOwner()->arenas)){
 			return;
 		}
-		foreach($this->getOwner()->arenas as $name => $class){
+		foreach(array_values($this->getOwner()->arenas) as $class){
 			$class->runGame();
 		}
 	}

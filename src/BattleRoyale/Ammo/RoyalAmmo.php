@@ -3,18 +3,19 @@
 namespace BattleRoyale\Ammo;
 
 use pocketmine\entity\Entity;
-use pocketmine\entity\Snowball;
-use pocketmine\level\particle\HappyVillagerParticle;
+use pocketmine\entity\projectile\Snowball;
+use pocketmine\level\particle\FlameParticle;
 
 class RoyalAmmo extends Snowball {
 
   private $playerDamage = 0;
 
-  public function onUpdate($currentTick){
+  public function onUpdate(int $currentTick): bool{
     parent::onUpdate($currentTick);
     if(!$this->closed){
-      $this->level->addParticle(new HappyVillagerParticle($this), $this->getViewers());//cambiar por fuego
+      $this->level->addParticle(new FlameParticle($this), $this->getViewers());
     }
+    return true;
   }
 
   public function getDamageValue(): int{
@@ -25,7 +26,7 @@ class RoyalAmmo extends Snowball {
     $this->playerDamage = $value;
   }
 
-  public function canCollide(Entity $entity){
+  public function canCollideWith(Entity $entity): bool{
     return $entity !== $this->getOwningEntity();
   }
 

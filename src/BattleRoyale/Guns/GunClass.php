@@ -4,7 +4,10 @@ namespace BattleRoyale\Guns;
 
 use pocketmine\item\Item;
 use pocketmine\Player;
+use pocketmine\item\ItemBlock;
 use pocketmine\utils\TextFormat;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\IntTag;
 use pocketmine\level\sound\BlazeShootSound;
 use pocketmine\entity\Entity;
 use BattleRoyale\EntityManager;
@@ -13,12 +16,16 @@ abstract class GunClass extends Item {
 
   static protected $max;
   static protected $zoom;
-  static protected $ammo; // TODO: usar de otra manera xD
+  static protected $ammo;
   static protected $damage;
   static protected $reload;
   static protected $reloading;
-  static protected $scheduler;
-  
+  static protected $time;
+
+  public function __construct(int $id, int $meta, string $name = "Unknown"){
+    parent::__construct($id, $meta, $name);
+  }
+
   public function getAmmo(): int{
     return static::$ammo;
   }
@@ -27,7 +34,7 @@ abstract class GunClass extends Item {
     return static::$zoom;
   }
 
-  public function setAmmo(int $value){
+  public function setAmmo(int $value): void{
     static::$ammo = $value;
   }
 
@@ -47,12 +54,12 @@ abstract class GunClass extends Item {
     return static::$max;
   }
 
-  public function getCurrentTime(): int{
-    return round(static::$scheduler, 3);
+  public function getCurrentTime(){
+    return static::$time;
   }
 
-  public function setCurrentTime($value){
-    static::$scheduler = $value;
+  public function setCurrentTime(int $value): void{
+    static::$time = $value;
   }
 
   public function getDamageValue(): int{
@@ -61,22 +68,25 @@ abstract class GunClass extends Item {
 
   public function hasAmmo(Player $player): int{
     $has = null;
-    foreach($player->getInventory()->getContents() as $key => $item){
-      if($item->getId() === 144 || $item->getId() === 397){
+    for($i = 0; $i < $player->getInventory()->getDefaultSize() - 4; ++$i){
+      $item = $player->getInventory()->getItem($i);
+      if($item->getId() === 397){
         $has = $item;
         break;
+      }else{
+        continue;
       }
     }
-    if(!is_null($has)){
+    if($has instanceof ItemBlock){
       $count = $has->getCount();
       if($count >= $this->getMax()){
         $count = $this->getMax();
       }else if($count > 0){
-        $count = $this->getMax()-(abs($this->getMax()-$count));
+        $count = $this->getMax() - (abs($this->getMax() - $count));
       }else{
         $count = 0;
       }
-      $player->getInventory()->removeItem(Item::get($has->getId(), $has->getDamage(), $count));
+      $player->getInventory()->removeItem(ItemBlock::get($has->getId(), $has->getDamage(), $count));
       return $count;
     }else{
       return 0;
@@ -86,7 +96,7 @@ abstract class GunClass extends Item {
   public function checkStatus(Player $player){
     if($this->isReloading()){
       $end = microtime(true);
-      if(($time = round($end-$this->getCurrentTime(), 3)) >= $this->getReloadTime()){
+      if(($time = round($end - $this->getCurrentTime(), 3)) >= $this->getReloadTime()){
         $this->setReloading(false);
         $this->setCurrentTime(0);
         return true;
@@ -111,11 +121,11 @@ abstract class GunClass extends Item {
     }
   }
 
-  public function getMaxStackSize(){
+  public function getMaxStackSize(): int{
     return 1;
   }
 
-  public function shootClass(Item $item, Player $player){
+  public function shootClass(Item $item, Player $player): void{
     $motion = 0.0;
     switch($item->getId()){
       case 416:
@@ -142,7 +152,7 @@ abstract class GunClass extends Item {
     }
   }
 
-  public function useGun(Player $player){
+  public function useGun(Player $player): void{
     if($this->checkStatus($player)){
       $this->shootClass($player->getInventory()->getItemInHand(), $player);
       $player->setXpLevel($this->getAmmo());

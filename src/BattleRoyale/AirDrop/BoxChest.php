@@ -16,15 +16,14 @@ class BoxChest extends Chest {
 
 	public function __construct(Level $level, CompoundTag $compound){
 		parent::__construct($level, $compound);
-		BoxChest::$entity = $compound->Entity->getValue();
 		$this->block = array($this->getBlock()->getId(), $this->getBlock()->getDamage());
 	}
 
-	public function setNewInventory(array $contents){
+	public function setNewInventory(array $contents): void{
 		$this->contents = $contents;
 	}
 
-	public function getItemsData(){
+	public function getItemsData(): ?array{
 		return $this->contents;
 	}
 

@@ -16,18 +16,16 @@ class BoxEntity extends EntityManager {
   public $height = 1;
   public $lenght = 1;
   public $weight = 1;
+  public $width = 1;
   
   private $contents = array();
 
   public function initEntity(){
-  	$this->setNameTag($this->getName());
-  	$this->setNameTagVisible(true);
-  	$this->setNameTagAlwaysVisible(true);
     ChestItems::fillAirDrop($this);
     parent::initEntity();
   }
 
-  public function setInventory(array $contents){
+  public function setInventory(array $contents): void{
   	$this->contents = $contents;
   }
 
@@ -35,12 +33,12 @@ class BoxEntity extends EntityManager {
   	return $this->contents;
   }
 
-  public function getName(){
+  public function getName(): string{
     return ">> Air Drop <<";
   }
 
-  public function attack($damage, EntityDamageEvent $source){
-    parent::attack($damage, $source);
+  public function attack(EntityDamageEvent $source){
+    parent::attack($source);
     if($source instanceof EntityDamageByEntityEvent){
     	$player = $source->getDamager();
     	if($player instanceof Player){

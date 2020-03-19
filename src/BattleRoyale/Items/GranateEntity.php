@@ -15,7 +15,7 @@ class GranateEntity extends CustomProjectile {
 
 	private $type = 0;
 
-	public function getName(){
+	public function getName(): string{
 		return TextFormat::YELLOW."> Granada <";
 	}
 
@@ -61,11 +61,12 @@ class GranateEntity extends CustomProjectile {
 		}
 	}
 
-	public function onUpdate($currentTick){
+	public function onUpdate(int $currentTick): bool{
 		parent::onUpdate($currentTick);
-		if($this->hadCollision){
+		if($this->isCollided){
 			$this->explode();
 		}
+		return true;
 	}
 
 }

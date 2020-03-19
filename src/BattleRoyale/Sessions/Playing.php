@@ -9,6 +9,7 @@ use BattleRoyale\Utilities\Utils;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\utils\TextFormat;
 use pocketmine\entity\Effect;
+use pocketmine\entity\EffectInstance;
 use pocketmine\item\Item;
 use pocketmine\Player;
 
@@ -49,10 +50,11 @@ class Playing {
 		$entity->teleport($game->asPosition($game->getSpawn()));
 		$entity->removeAllEffects();
 		$entity->setMaxHealth(self::HEALTH);
-		$entity->setHealth($entity->getHealth());
+		$entity->setHealth($entity->getMaxHealth());
 		$entity->setFood(self::FOOD);
-		$entity->getInventory()->setContents(array(Item::get(Item::AIR, 0)));
-		$entity->getInventory()->sendContents($entity);
+		$entity->addEffect(new EffectInstance(Effect::getEffect(Effect::JUMP), 99999*20, 1, false));
+		$entity->getArmorInventory()->clearAll(true);
+		$entity->getInventory()->clearAll(true);
 		$entity->sendMessage(TextFormat::YELLOW."Te has unido correctamente a esta partida!");
 	}
 
@@ -60,7 +62,7 @@ class Playing {
 		return $this->zoom;
 	}
 
-	public function sendMessage(string $message){
+	public function sendMessage(string $message): void{
 		$this->getPlayer()->sendMessage($message);
 	}
 
@@ -68,20 +70,19 @@ class Playing {
 		return $this->falling;
 	}
 
-	public function setFalling(bool $value){
+	public function setFalling(bool $value): void{
 		$this->falling = $value;
 		$player = $this->getPlayer();
 		if(!$value){
 			$player->setAllowFlight(false);
-			$player->getInventory()->setChestplate(Item::get(0, 0));
-			$player->getInventory()->sendContents($player);
-			if($player->getDataflag(Player::DATA_FLAGS, Player::DATA_FLAG_GLIDING)){
-				$player->setDataFlag(Player::DATA_FLAGS, Player::DATA_FLAG_GLIDING, false);
+			$player->getArmorInventory()->setChestplate(Item::get(Item::AIR, 0));
+			if($player->getGenericFlag(Player::DATA_FLAG_GLIDING)){
+				$player->setGenericFlag(Player::DATA_FLAG_GLIDING, false);
 			}
 		}
 	}
 
-	public function setZoomStatus(bool $value){
+	public function setZoomStatus(bool $value): void{
 		$this->zoom = $value;
 	}
 
@@ -106,9 +107,11 @@ class Playing {
 			if($this->getArena()->getStorm()->getStatus() === 1){
 				$damage = 2;
 			}
-			$event = new EntityDamageEvent($player, EntityDamageEvent::CAUSE_MAGIC, $damage);
-			$player->attack($damage, $event);
-			GameManager::getInstance()->getServer()->getPluginManager()->callEvent($event);
+			if(!$this->isFalling()){
+				$event = new EntityDamageEvent($player, EntityDamageEvent::CAUSE_MAGIC, $damage);
+				$player->attack($event);
+				GameManager::getInstance()->getServer()->getPluginManager()->callEvent($event);
+			}
 			return TextFormat::RED."En peligro";
 		}
 	}
@@ -117,15 +120,15 @@ class Playing {
 		return $this->arena;
 	}
 
-	public function addZoom(){
+	public function addZoom(): void{
 		$this->setZoomStatus(true);
-		$this->getPlayer()->getInventory()->setHelmet(Item::get(86, 0));
-		$this->getPlayer()->addEffect(Effect::getEffect(2)->setDuration(20*99)->setVisible(false)->setAmplifier(5));
+		$this->getPlayer()->getArmorInventory()->setHelmet(Item::get(86, 0));
+		$this->getPlayer()->addEffect(new EffectInstance(Effect::getEffect(2), 20*99, 5, false));
 	}
 
-	public function removeZoom(){
+	public function removeZoom(): void{
 		$this->setZoomStatus(false);
-		$this->getPlayer()->getInventory()->setHelmet(Item::get(Item::AIR, 0));
+		$this->getPlayer()->getArmorInventory()->setHelmet(Item::get(Item::AIR, 0));
 		if($this->getPlayer()->hasEffect(2)){
 			$this->getPlayer()->removeEffect(2);
 		}
@@ -139,19 +142,19 @@ class Playing {
 		return $this->position;
 	}
 
-	public function setPosition(int $position){
+	public function setPosition(int $position): void{
 		$this->position = $position;
 	}
 
-	public function startGame(){
+	public function startGame(): void{
 		$this->setFalling(true);
 		$player = $this->getPlayer();
 		$player->setNameTag(self::NAMETAG);
 		$player->setGameMode($player::SURVIVAL);
 		$player->setAllowFlight(true);
-		if(!$player->getDataflag(Player::DATA_FLAGS, Player::DATA_FLAG_GLIDING)){
-			$player->setDataFlag(Player::DATA_FLAGS, Player::DATA_FLAG_GLIDING, true);
-			$player->getInventory()->setChestplate(Item::get(444, 0, 1));
+		if(!$player->getGenericFlag(Player::DATA_FLAG_GLIDING)){
+			$player->setGenericFlag(Player::DATA_FLAG_GLIDING, true);
+			$player->getArmorInventory()->setChestplate(Item::get(444, 0, 1));
 		}
 		$player->getInventory()->setItem(0, Item::get(Item::SANDSTONE, 0, 64));
 		$player->getInventory()->setItem(1, Item::get(Item::COMPASS, 0, 1)->setCustomName("Centro"));
@@ -171,17 +174,17 @@ class Playing {
 		}
 	}
 
-	public function setLastHit(string $damager){
+	public function setLastHit(string $damager): void{
 		if(!is_null(Utils::getPlayer($damager))){
 			$this->lasthit = array($damager, microtime(true));
 		}
 	}
 
-	public function addKill(){
+	public function addKill(): void{
 		$this->kills += 1;
 	}
 
-	public function addRankingPoints(int $value){
+	public function addRankingPoints(int $value): void{
 		if(!($value >= GameManager::getInstance()->getConfig()->get("max.points", 100))){
 			$this->points += $value;
 		}
@@ -191,21 +194,22 @@ class Playing {
 		return $this->points;
 	}
 
-	public function deleteSession(){
+	public function deleteSession(): void{
 		$player = $this->getPlayer();
 		if($this->isFalling()){
 			$this->setFalling(false);
 		}
-		if($player->getDataflag(Player::DATA_FLAGS, Player::DATA_FLAG_GLIDING)){
-			$player->setDataFlag(Player::DATA_FLAGS, Player::DATA_FLAG_GLIDING, false);
+		if($player->getGenericFlag(Player::DATA_FLAG_GLIDING)){
+			$player->setGenericFlag(Player::DATA_FLAG_GLIDING, false);
 		}
 		BossManager::removeWindow($player);
 		$player->removeAllEffects();
 		$player->setHealth($player->getMaxHealth());
 		$player->setFood(self::FOOD);
+		$player->setXpLevel(0);
 		$player->setNameTag($this->getOriginalNametag());
-		$player->getInventory()->setContents(array(Item::get(Item::AIR, 0)));
-		$player->getInventory()->sendContents($player);
+		$player->getArmorInventory()->clearAll(true);
+		$player->getInventory()->clearAll(true);
 		$player->teleport(GameManager::getInstance()->getServer()->getDefaultLevel()->getSafeSpawn());
 		unset(GameManager::$players[$player->getName()]);
 	}

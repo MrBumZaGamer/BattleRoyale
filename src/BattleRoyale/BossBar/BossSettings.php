@@ -10,23 +10,23 @@ class BossSettings extends Attribute {
     //Hola xD
   }
 
-  public function getMinValue(){
+  public function getMinValue(): float{
     return 1;
   }
 
-  public function getMaxValue(){
+  public function getMaxValue(): float{
     return 600;
   }
 
-  public function getValue(){
+  public function getValue(): float{
     return $this->getMaxValue();
   }
 
-  public function getName(){
+  public function getName(): string{
     return "minecraft:health";
   }
 
-  public function getDefaultValue(){
+  public function getDefaultValue(): float{
     return $this->getValue();
   }
 

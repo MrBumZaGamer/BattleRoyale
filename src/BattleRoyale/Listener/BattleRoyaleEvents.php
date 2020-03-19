@@ -6,13 +6,11 @@ use BattleRoyale\GameManager;
 use BattleRoyale\Guns\GunClass;
 use BattleRoyale\Utilities\Utils;
 use BattleRoyale\BossBar\BossManager;
-use BattleRoyale\Sessions\Playing;
 use BattleRoyale\Items\RoyalCompass;
 use BattleRoyale\Items\Granate;
 use BattleRoyale\Items\Launcher;
 use BattleRoyale\Items\RoyaleEgg;
 use BattleRoyale\Items\Fireball;
-use BattleRoyale\AirDrop\BoxEntity;
 use BattleRoyale\Ammo\RoyalAmmo;
 use pocketmine\event\Listener;
 use pocketmine\utils\TextFormat;
@@ -20,7 +18,6 @@ use pocketmine\Player;
 use pocketmine\item\Item;
 use pocketmine\math\Vector3;
 use pocketmine\block\Block;
-use pocketmine\block\Flowable;
 use pocketmine\event\player\PlayerMoveEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\player\PlayerKickEvent;
@@ -86,8 +83,8 @@ class BattleRoyaleEvents implements Listener {
 	public function changeGamemode(PlayerGameModeChangeEvent $event){
 		$player = $event->getPlayer();
 		if(!is_null($session = Utils::getPlayer($player->getName()))){
-			if($event->getNewGamemode() === 1 || $event->getNewGamemode() === 3){
-				$player->sendMessage(TextFormat::RED."Este modo de juego no esta disponible");
+			if($event->getNewGamemode() === Player::CREATIVE || $event->getNewGamemode() === Player::SPECTATOR){
+				$player->sendMessage(TextFormat::RED."Este modo de juego no esta disponible, has sido expulsado!");
 				Utils::resetPlayer($session, true);
 			}
 		}
@@ -107,18 +104,23 @@ class BattleRoyaleEvents implements Listener {
 				$headshot = false;
 				$guncause = false;
 				if($event instanceof EntityDamageByChildEntityEvent){
-					if(($child = $event->getChild()) instanceof RoyalAmmo){
+					$child = $event->getChild();
+					$damager = $child->getOwningEntity();
+					if($child instanceof RoyalAmmo){
 						$guncause = true;
-						$damager = $child->getOwningEntity();
 						if(!is_null(Utils::getPlayer($damager->getName()))){
 							$session->setLastHit($damager->getName());
 						}
 						if($child->getY() >= ($player->getY() + $player->getEyeHeight())){
 							$headshot = true;
 							$event->setDamage($event->getDamage() + ($child->getDamageValue() * 2.5));
-							$damager->sendMessage(TextFormat::YELLOW."> Headshot <");
+							$damager->sendMessage(TextFormat::YELLOW."> Headshot");
 						}else{
 							$event->setDamage($event->getDamage() + $child->getDamageValue());
+						}
+					}else{
+						if(!is_null($damager)){
+							$damager->sendPopup(TextFormat::GREEN."Has acertado!");
 						}
 					}
 				}
@@ -145,6 +147,7 @@ class BattleRoyaleEvents implements Listener {
 				}
 				if($event->getCause() === EntityDamageEvent::CAUSE_VOID and $session->isFalling()){
 					$event->setCancelled();
+					$player->sendMessage(TextFormat::RED."Has caido al vacio, suerte en la proxima!");
 					Utils::resetPlayer($session, true);
 				}
 				if($event->getDamage() >= $player->getHealth()){
@@ -163,7 +166,13 @@ class BattleRoyaleEvents implements Listener {
 							$kdata->getPlayer()->sendMessage(TextFormat::GREEN."Has matado ha: ".TextFormat::RED.$player->getName());
 							$player->sendMessage(TextFormat::RED."Has sido eliminado por: ".TextFormat::YELLOW.$killer);
 						}
+						foreach($session->getArena()->getPlayers(true) as $class){
+							$class->sendMessage(TextFormat::YELLOW.$killer.TextFormat::GRAY." ha matado a ".TextFormat::RED.$player->getName());
+						}
 						unset($kdata, $killer);
+					}
+					foreach($session->getArena()->getPlayers(true) as $class){
+						$class->sendMessage(TextFormat::RED.$player->getName().TextFormat::YELLOW." ha sido eliminado!");
 					}
 					Utils::resetPlayer($session, true, true);
 				}
@@ -205,7 +214,9 @@ class BattleRoyaleEvents implements Listener {
 					$session->addZoom();
 				}
 			}else{
-				$player->setXpLevel(0);
+				if($player->getXpLevel() > 0){
+					$player->setXpLevel(0);
+				}
 				if($session->isZoomActivated()){
 					$session->removeZoom();
 				}
@@ -231,8 +242,9 @@ class BattleRoyaleEvents implements Listener {
 					case "level":
 					case "mundo":
 					$level = null;
+					$server = GameManager::getInstance()->getServer();
 					if(isset($args[1])){
-						if(!($server = GameManager::getInstance()->getServer())->isLevelLoaded($args[1])){
+						if(!$server->isLevelLoaded($args[1])){
 							$server->loadLevel($args[1]);
 							if(!is_null(($mundo = $server->getLevelByName($args[1])))){
 								$level = $mundo;
@@ -283,18 +295,22 @@ class BattleRoyaleEvents implements Listener {
 
 					case "radius":
 					case "radio";
-					if(is_null($creator::$options["level"]) || is_null($creator::$options["center"])){
+					if(is_null($creator->options["level"]) || is_null($creator->options["center"])){
 						$player->sendMessage(TextFormat::RED."Debes intrucir primero el mundo y el centro de la partida!");
 					}else{
-						$radius = floor($player->distance(Utils::getVector($creator::$options["center"])));
-						$creator->setRadius($radius);
-						$player->sendMessage(TextFormat::GREEN."Has intrucido el radio de la tormenta para esta partida correctamente!");
+						$radius = floor($player->distance(Utils::getVector($creator->options["center"])));
+						if($radius < 150){
+							$player->sendMessage(TextFormat::RED."La distancia debe ser mayor o igual a 150, distancia introducida: $radius");
+						}else{
+							$creator->setRadius($radius);
+							$player->sendMessage(TextFormat::GREEN."Has intrucido el radio de la tormenta para esta partida correctamente!");
+						}
 					}
 					break;
 
 					case "center":
 					case "centro":
-					if(is_null($creator::$options["level"])){
+					if(is_null($creator->options["level"])){
 						$player->sendMessage(TextFormat::RED."Debes selecconar el mundo primero...");
 					}else{
 						$creator->setCenter($player->getFloorX().":".$player->getY().":".$player->getFloorZ());
@@ -304,7 +320,7 @@ class BattleRoyaleEvents implements Listener {
 
 					case "lobby":
 					case "sala": //de espera xD
-					if(is_null($creator::$options["level"])){
+					if(is_null($creator->options["level"])){
 						$player->sendMessage(TextFormat::RED."Debes seleccionar el nombre del mundo primero...");
 					}else{
 						$creator->setLobby($player->getFloorX().":".$player->getY().":".$player->getFloorZ());
@@ -314,9 +330,12 @@ class BattleRoyaleEvents implements Listener {
 
 					case "options":
 					case "opciones":
-					foreach($creator::$options as $key => $value){
+					foreach($creator->options as $key => $value){
 						if(is_array($value)){
 							$value = empty($value) ? "empty" : implode(", ", $value);
+						}
+						if(is_null($value)){
+							$value = "not set";
 						}
 						$player->sendMessage(TextFormat::YELLOW.$key." > ".TextFormat::WHITE.$value);
 					}
@@ -366,17 +385,13 @@ class BattleRoyaleEvents implements Listener {
 	}
 
 	public function onInteract(PlayerInteractEvent $event){
-		if($event->getAction() === 3){
+		if($event->getAction() === PlayerInteractEvent::RIGHT_CLICK_AIR){
 			$player = $event->getPlayer();
 			$session = Utils::getPlayer($player->getName());
 			if(($item = $event->getItem()) instanceof GunClass){
-				$item->useGun($player);
-			}
-			if($item instanceof Granate){
-				$item->throwGranate($player);
-			}
-			if($item instanceof RoyaleEgg){
-				$item->throwEgg($player);
+				if(!is_null($session)){
+					$item->useGun($player);
+				}
 			}
 			if($item instanceof Launcher){
 				if(!is_null($session)){
@@ -384,7 +399,7 @@ class BattleRoyaleEvents implements Listener {
 				}
 			}
 			if($item instanceof Fireball){
-				$item->shootBall($player);
+				$item->onClickAir($player, $player->getDirectionVector());
 			}
 			if($item instanceof RoyalCompass){
 				if(!is_null($session)){
@@ -396,8 +411,8 @@ class BattleRoyaleEvents implements Listener {
 					return;
 				}
 				$block = $player->getLevel()->getBlock($player->add($player->getDirectionVector()->multiply(3.5)));
-				if(($block instanceof Flowable || $block->getId() === Block::AIR) and !$player->isSneaking()){
-					$this->build($block, $player->isSneaking(), $player->pitch, $player->getDirection(), $item->getId());
+				if(($block->canBeFlowedInto())){
+					$this->build($block, false, $player->pitch, $player->getDirection(), $item->getId());
 					$player->getInventory()->removeItem(Item::get($item->getId(), $item->getDamage(), 1));
 				}
 			}
@@ -405,6 +420,9 @@ class BattleRoyaleEvents implements Listener {
 	}
 
 	public function onSneak(PlayerToggleSneakEvent $event){
+		if($event->isCancelled()){
+			return;
+		}
 		$player = $event->getPlayer();
 		if(!is_null($session = Utils::getPlayer($player->getName()))){
 			if(($item = $player->getInventory()->getItemInHand()) instanceof GunClass){
@@ -429,7 +447,7 @@ class BattleRoyaleEvents implements Listener {
 			if($session->getArena()->getStatus() !== $session->getArena()::RUNNING){
 				$event->setCancelled();
 			}else{
-				if(!in_array($block->getId(), array(4, 5, 6, 17, 18, 24, 31, 32, 37, 38, 39, 40, 110, 111, 161, 162, 175))){
+				if(!in_array($block->getId(), array(1, 4, 5, 6, 17, 18, 24, 31, 32, 37, 38, 39, 40, 110, 111, 161, 162, 175))){
 					$event->setCancelled();
 				}else{
 					if($block->getId() === 17 || $block->getId() === 162){
@@ -468,7 +486,7 @@ class BattleRoyaleEvents implements Listener {
 					$xx = $fx + $x;
 					$zz = $fz + $z;
 					$target = $block->level->getBlock(new Vector3($xx, $block->getY(), $zz));
-					if($target instanceof Flowable || $target->getId() === Block::AIR){
+					if($target->canBeFlowedInto()){
 						$block->level->setBlockIdAt($xx, $block->getY(), $zz, $blockid);
 					}
 				}
@@ -492,7 +510,7 @@ class BattleRoyaleEvents implements Listener {
 					    break;
 					}
 				    $target = $block->level->getBlock(new Vector3($fx, $block->getY() + $y, $fz));
-				    if($target instanceof Flowable || $target->getId() === Block::AIR){
+				    if($target->canBeFlowedInto()){
 					    $block->level->setBlockIdAt($fx, $block->getY() + $y, $fz, $blockid);
 				    }
 				    $time++;
@@ -506,7 +524,7 @@ class BattleRoyaleEvents implements Listener {
 							$fx = $block->getX() + $x;
 						}
 						$target = $block->level->getBlock(new Vector3($fx, $block->getY() + $y, $fz));
-						if($target instanceof Flowable || $target->getId() === Block::AIR){
+						if($target->canBeFlowedInto()){
 							$block->level->setBlockIdAt($fx, $block->getY() + $y, $fz, $blockid);
 						}
 					}
